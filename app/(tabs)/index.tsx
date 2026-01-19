@@ -1,98 +1,68 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+// แก้ Path ตรงนี้ (ใช้ .. จุด 2 อันพอ)
+import { useProject } from '../GlobalContext'; 
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { user, projects, addProject, isLoggedIn } = useProject();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const handleCreate = () => {
+    addProject("New Cancer Study", "Unknown Drug");
+    Alert.alert("Success", "New Project Workspace Created!");
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.welcome}>Welcome back,</Text>
+        <Text style={styles.user}>{isLoggedIn ? user : "Guest User"}</Text>
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.label}>ACTIVE PROJECTS ({projects.length})</Text>
+        
+        {/* แก้ตัวแดง: ใส่ : any หลัง proj */}
+        {projects.map((proj: any, index: number) => (
+          <TouchableOpacity 
+            key={proj.id} 
+            style={[styles.activeProject, { marginBottom: 15, backgroundColor: index === 0 ? '#003366' : '#fff' }]} 
+            onPress={() => router.push("/upload" as any)}
+          >
+             <View style={styles.projHeader}>
+               <Ionicons name="folder-open" size={24} color={index === 0 ? '#fff' : '#003366'} />
+               <Text style={[styles.projName, { color: index === 0 ? '#fff' : '#333' }]}>{proj.name}</Text>
+             </View>
+             <Text style={{ color: index === 0 ? '#A5C9FF' : '#666', marginBottom: 15 }}>Target: {proj.drug} | {proj.status}</Text>
+             <View style={styles.progressRow}>
+               <Text style={{ color: index === 0 ? '#ccc' : '#999', fontSize: 12 }}>Updated: {proj.date}</Text>
+               <View style={styles.badge}><Text style={styles.badgeText}>OPEN</Text></View>
+             </View>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity style={styles.newBtn} onPress={handleCreate}>
+           <Ionicons name="add-circle" size={24} color="#003366" />
+           <Text style={styles.newBtnText}>Create New Project</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, backgroundColor: '#F8FBFF' },
+  header: { padding: 25, paddingTop: 70 },
+  welcome: { fontSize: 14, color: '#666' },
+  user: { fontSize: 24, fontWeight: 'bold', color: '#003366' },
+  content: { padding: 20, paddingTop: 0 },
+  label: { fontSize: 12, fontWeight: '900', color: '#B0BEC5', marginBottom: 10, marginTop: 10 },
+  activeProject: { borderRadius: 20, padding: 20, elevation: 4 },
+  projHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  projName: { fontSize: 18, fontWeight: 'bold', marginLeft: 10 },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)', paddingTop: 15 },
+  badge: { backgroundColor: '#4CD964', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  newBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 20, marginTop: 10, backgroundColor: '#E3F2FD', borderRadius: 15 },
+  newBtnText: { color: '#003366', fontWeight: 'bold', marginLeft: 10, fontSize: 16 }
 });
