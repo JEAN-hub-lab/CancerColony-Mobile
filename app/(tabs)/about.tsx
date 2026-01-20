@@ -1,70 +1,141 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// แก้ Path ตรงนี้เหมือนกัน (ใช้ .. จุด 2 อันพอ)
-import { useProject } from '../GlobalContext'; 
+import { useProject } from '../GlobalContext'; // Import 2 จุด
 
 export default function ProfileScreen() {
-  const { user, isLoggedIn, login, logout, projects } = useProject();
+  const { currentUser, isLoggedIn, login, register, logout, projects, isLoading } = useProject();
+  
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleAuth = () => {
-    if (isLoggedIn) {
-      logout();
-      Alert.alert("System", "Logged out successfully");
+  // แก้: ใส่ async ตรงนี้
+  const handleAuth = async () => {
+    if (!username || !password) return Alert.alert("Error", "Please fill in all fields");
+
+    if (isRegisterMode) {
+      // แก้: ใส่ await รอผล Register
+      const success = await register(username, password);
+      if (success) {
+        Alert.alert("Success", "Account created! Please log in.");
+        setIsRegisterMode(false);
+      }
     } else {
-      login();
-      Alert.alert("Welcome", "Logged in as Research Team A");
+      // แก้: ใส่ await รอผล Login
+      const success = await login(username, password);
+      if (success) {
+        setUsername('');
+        setPassword('');
+      } else {
+        Alert.alert("Failed", "Invalid username or password");
+      }
     }
   };
 
+  if (!isLoggedIn) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.authContainer}>
+        <View style={styles.logoBox}>
+          <Ionicons name="medical" size={60} color="#fff" />
+          <Text style={styles.appTitle}>CancerColony AI</Text>
+        </View>
+
+        <View style={styles.formBox}>
+          <Text style={styles.formTitle}>{isRegisterMode ? "Create Account" : "Welcome Back"}</Text>
+          
+          <TextInput 
+            placeholder="Username" 
+            style={styles.input} 
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          <TextInput 
+            placeholder="Password" 
+            style={styles.input} 
+            secureTextEntry 
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleAuth} disabled={isLoading}>
+            {isLoading ? (
+                <ActivityIndicator color="#fff" />
+            ) : (
+                <Text style={styles.btnText}>{isRegisterMode ? "Sign Up" : "Log In"}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setIsRegisterMode(!isRegisterMode)} style={{marginTop: 15}}>
+            <Text style={styles.linkText}>
+              {isRegisterMode ? "Already have an account? Log In" : "New user? Create an Account"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
-      <View style={[styles.header, { backgroundColor: isLoggedIn ? '#003366' : '#666' }]}>
-        <View style={styles.avatar}><Ionicons name="person" size={40} color="#fff" /></View>
-        <Text style={styles.name}>{isLoggedIn ? user : "Guest"}</Text>
-        <Text style={styles.role}>{isLoggedIn ? "Admin" : "Viewer Mode"}</Text>
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+           <Text style={{fontSize:30, fontWeight:'bold', color:'#003366'}}>
+             {currentUser.charAt(0).toUpperCase()}
+           </Text>
+        </View>
+        <Text style={styles.name}>{currentUser}</Text>
+        <Text style={styles.role}>Researcher</Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>MY WORKSPACE</Text>
-        <View style={styles.statCard}>
-            <Text style={styles.statNum}>{projects.length}</Text>
-            <Text style={styles.statLabel}>Active Projects</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+           <Text style={styles.statNum}>{projects.length}</Text>
+           <Text style={styles.statLabel}>My Projects</Text>
+        </View>
+        <View style={styles.statBox}>
+           <Text style={styles.statNum}>Active</Text>
+           <Text style={styles.statLabel}>Status</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>DEVELOPMENT TEAM</Text>
-        <View style={styles.teamCard}>
-          <View style={styles.member}><Ionicons name="person-outline" size={16} /><Text style={styles.memName}>Khajon Muenban</Text></View>
-          <View style={styles.member}><Ionicons name="person-outline" size={16} /><Text style={styles.memName}>Printhorn Kongphol</Text></View>
-        </View>
+        <Text style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => {
+            Alert.alert("Logout", "Are you sure?", [
+              { text: "Cancel" }, { text: "Log Out", style: 'destructive', onPress: logout }
+            ])
+        }}>
+           <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+           <Text style={[styles.menuText, {color: '#FF3B30'}]}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity 
-        style={[styles.logoutBtn, { backgroundColor: isLoggedIn ? '#FF3B30' : '#4CD964' }]} 
-        onPress={handleAuth}
-      >
-        <Text style={styles.logoutText}>{isLoggedIn ? "Log Out" : "Log In"}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  authContainer: { flex: 1, backgroundColor: '#003366', justifyContent: 'center', padding: 20 },
+  logoBox: { alignItems: 'center', marginBottom: 40 },
+  appTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginTop: 10 },
+  formBox: { backgroundColor: '#fff', padding: 25, borderRadius: 20, elevation: 5 },
+  formTitle: { fontSize: 22, fontWeight: 'bold', color: '#333', marginBottom: 20, textAlign: 'center' },
+  input: { backgroundColor: '#F0F4F8', padding: 15, borderRadius: 10, marginBottom: 15, fontSize: 16 },
+  primaryBtn: { backgroundColor: '#003366', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  linkText: { color: '#003366', textAlign: 'center', fontWeight: '600' },
   container: { flex: 1, backgroundColor: '#F4F7FA' },
-  header: { padding: 40, alignItems: 'center', borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  name: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  role: { color: '#ddd' },
-  section: { padding: 20 },
-  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: '#888', marginBottom: 10 },
-  statCard: { backgroundColor: '#fff', padding: 20, borderRadius: 12, alignItems: 'center', elevation: 2 },
-  statNum: { fontSize: 30, fontWeight: 'bold', color: '#003366' },
-  statLabel: { color: '#666' },
-  teamCard: { backgroundColor: '#fff', padding: 15, borderRadius: 12 },
-  member: { flexDirection: 'row', marginBottom: 8, alignItems: 'center' },
-  memName: { marginLeft: 10, color: '#444' },
-  logoutBtn: { margin: 20, padding: 15, borderRadius: 12, alignItems: 'center' },
-  logoutText: { color: '#fff', fontWeight: 'bold' }
+  header: { alignItems: 'center', padding: 40, backgroundColor: '#fff' },
+  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  name: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  role: { color: '#888', marginTop: 5 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-around', padding: 20, backgroundColor: '#fff', marginTop: 1 },
+  statBox: { alignItems: 'center' },
+  statNum: { fontSize: 20, fontWeight: 'bold', color: '#003366' },
+  statLabel: { fontSize: 12, color: '#999' },
+  section: { marginTop: 20, backgroundColor: '#fff', padding: 20 },
+  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: '#ccc', marginBottom: 15 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  menuText: { fontSize: 16, marginLeft: 15, fontWeight: '500' }
 });

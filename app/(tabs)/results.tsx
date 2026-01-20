@@ -1,133 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
-// @ts-ignore
-import { BarChart } from 'react-native-chart-kit';
-import { useLocalSearchParams, router } from 'expo-router';
+import React from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useProject } from '../GlobalContext'; 
 
 export default function ResultsScreen() {
-  const params = useLocalSearchParams();
-  const [loading, setLoading] = useState(true); // เริ่มต้นโหลดเสมอ
-  
-  const cellLine = params.cellLine as string;
-  const drugName = params.drugName as string;
-  const dosesString = params.doses as string;
+  const { activeProjectId, projects } = useProject();
+  const activeProj = projects.find((p: any) => p.id === activeProjectId);
 
-  // 1. Hook ต้องอยู่บนสุด (ห้ามมี if return ก่อนบรรทัดนี้เด็ดขาด!)
-  useEffect(() => {
-    // ถ้ามีข้อมูล ให้เริ่มนับถอยหลังโหลด
-    if (cellLine && drugName) {
-      setLoading(true);
-      const timer = setTimeout(() => {
-        setLoading(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    } else {
-      // ถ้าไม่มีข้อมูล ไม่ต้องโหลด
-      setLoading(false);
-    }
-  }, [params]); // รันใหม่เมื่อ params เปลี่ยน
-
-  // แปลงข้อมูล
-  let doses: any[] = [];
-  try {
-    doses = dosesString ? JSON.parse(dosesString) : [];
-  } catch (e) { doses = []; }
-  
-  const labels = doses.length > 0 ? doses.map((d: any) => d.concentration) : ["0"];
-
-  // 2. Logic การคำนวณ (อยู่หลัง Hook ได้)
-  const isTarget = drugName && drugName.toLowerCase().includes('isal');
-  const countData = isTarget 
-    ? [100, 60, 48, 35, 20].slice(0, labels.length) 
-    : labels.map((_: any, i: number) => Math.max(0, 100 - (i * 15)));
-  const sizeData = isTarget 
-    ? [400, 310, 220, 190, 150].slice(0, labels.length) 
-    : labels.map((_: any, i: number) => Math.max(0, 500 - (i * 80)));
-
-  // 3. เงื่อนไข Return (ต้องอยู่ล่างสุด หลังจากประกาศ Hooks ครบแล้ว)
-  
-  // กรณี: กำลังโหลด
-  if (loading) return (
-    <View style={styles.center}>
-      <ActivityIndicator size="large" color="#003366" />
-      <Text style={styles.loadText}>Analyzing {cellLine || "Sample"}...</Text>
-    </View>
-  );
-
-  // กรณี: ไม่มีข้อมูล
-  if (!cellLine || !drugName) {
+  if (!activeProjectId || !activeProj) {
     return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="analytics-outline" size={80} color="#ccc" />
-        <Text style={styles.emptyText}>No Analysis Data</Text>
-        <Text style={styles.emptySub}>Please add lab data first.</Text>
-        <TouchableOpacity style={styles.goBackBtn} onPress={() => router.push("/upload" as any)}>
-           <Text style={styles.btnText}>Go to Lab Work</Text>
-        </TouchableOpacity>
+      <View style={styles.center}>
+         <Text style={{color:'#666', marginBottom: 20}}>No active project selected.</Text>
+         <TouchableOpacity style={styles.btnOutline} onPress={()=>router.push("/" as any)}>
+            <Text style={{color:'#003366', fontWeight:'bold'}}>Back to Projects</Text>
+         </TouchableOpacity>
       </View>
     );
   }
 
-  // กรณี: แสดงผลปกติ
+  // หน้าจอว่าง ถ้ายังไม่มีการทดลอง
+  if (activeProj.experiments.length === 0) {
+    return (
+      <View style={styles.center}>
+         <Ionicons name="flask-outline" size={80} color="#ddd" />
+         <Text style={styles.emptyTitle}>{activeProj.name}</Text>
+         <Text style={styles.emptySub}>No experiments yet.</Text>
+         <TouchableOpacity style={styles.addBtn} onPress={() => router.push("/upload" as any)}>
+            <Text style={styles.addBtnText}>+ Add First Experiment</Text>
+         </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.header}>Final Report</Text>
-      
-      <View style={styles.summaryCard}>
-        <View style={styles.row}>
-           <View><Text style={styles.label}>CELL LINE</Text><Text style={styles.value}>{cellLine}</Text></View>
-           <View><Text style={styles.label}>DRUG</Text><Text style={styles.value}>{drugName}</Text></View>
-        </View>
-        <View style={styles.divider} />
-        <Text style={styles.status}>Status: Complete (N={labels.length})</Text>
+      <Text style={styles.header}>Project Dashboard</Text>
+      <View style={styles.projBanner}>
+          <Text style={styles.projName}>{activeProj.name}</Text>
+          <Text style={styles.projMeta}>Total Experiments: {activeProj.experiments.length}</Text>
       </View>
 
-      <View style={styles.chartBox}>
-        <Text style={styles.chartTitle}>1. Colony Count (% of Control)</Text>
-        {/* @ts-ignore */}
-        <BarChart 
-          data={{ labels: labels, datasets: [{ data: countData }] }} 
-          width={Dimensions.get("window").width - 60} height={200} fromZero yAxisSuffix="%"
-          chartConfig={{ ...chartConfig, fillShadowGradient: "#EF5350", fillShadowGradientOpacity: 1 }} 
-          style={styles.chart} 
-        />
-      </View>
+      <Text style={styles.sectionLabel}>EXPERIMENTS LIST</Text>
 
-      <View style={styles.chartBox}>
-        <Text style={styles.chartTitle}>2. Colony Size (μm²)</Text>
-        {/* @ts-ignore */}
-        <BarChart 
-          data={{ labels: labels, datasets: [{ data: sizeData }] }} 
-          width={Dimensions.get("window").width - 60} height={200} fromZero 
-          chartConfig={{ ...chartConfig, fillShadowGradient: "#42A5F5", fillShadowGradientOpacity: 1 }} 
-          style={styles.chart} 
-        />
-      </View>
-      <View style={{height: 50}} />
+      {/* วนลูปโชว์เป็นรายการ (Card List) แทนกราฟ */}
+      {activeProj.experiments.map((exp: any, index: number) => (
+        <TouchableOpacity 
+            key={`${exp.id}-${index}`} 
+            style={styles.expCard}
+            // กดแล้วไปหน้า Detail พร้อมส่ง ID ไป
+            onPress={() => router.push({ pathname: "/experiment-detail", params: { id: exp.id } } as any)}
+        >
+            <View style={styles.cardLeft}>
+                <View style={styles.iconBox}>
+                    <Text style={styles.iconText}>#{activeProj.experiments.length - index}</Text>
+                </View>
+                <View>
+                    <Text style={styles.expTitle}>{exp.cellLine}</Text>
+                    <Text style={styles.expSub}>{exp.drug} • {exp.doses.length} Doses</Text>
+                </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#ccc" />
+        </TouchableOpacity>
+      ))}
+
+      <TouchableOpacity style={styles.addBtnFooter} onPress={() => router.push("/upload" as any)}>
+         <Ionicons name="add-circle" size={24} color="#003366" />
+         <Text style={styles.addBtnTextDark}>New Experiment</Text>
+      </TouchableOpacity>
+      <View style={{height: 50}}/>
     </ScrollView>
   );
 }
 
-const chartConfig = { backgroundGradientFrom: "#fff", backgroundGradientTo: "#fff", color: (o=1) => `rgba(0,0,0,${o})`, labelColor: (o=1) => `rgba(0,0,0,0.5)`, barPercentage: 0.6 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F4F7FA', padding: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F4F7FA' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, marginTop: 50 },
-  emptyText: { fontSize: 20, fontWeight: 'bold', color: '#888', marginTop: 20 },
-  emptySub: { textAlign: 'center', color: '#aaa', marginTop: 10, marginBottom: 30 },
-  goBackBtn: { backgroundColor: '#003366', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25 },
-  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  loadText: { marginTop: 15, color: '#003366', fontWeight: 'bold' },
-  header: { fontSize: 26, fontWeight: 'bold', color: '#003366', marginTop: 40, marginBottom: 20 },
-  summaryCard: { backgroundColor: '#003366', padding: 20, borderRadius: 16, marginBottom: 20, elevation: 5 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  label: { color: '#A5C9FF', fontSize: 10, fontWeight: 'bold' },
-  value: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginVertical: 10 },
-  status: { color: '#4CD964', fontSize: 12, fontWeight: 'bold' },
-  chartBox: { backgroundColor: '#fff', padding: 15, borderRadius: 16, marginBottom: 20, elevation: 3 },
-  chartTitle: { fontSize: 14, fontWeight: 'bold', color: '#333', marginBottom: 10, textAlign: 'center' },
-  chart: { borderRadius: 16 }
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 30 },
+  emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#003366', marginTop: 20, textAlign: 'center' },
+  emptySub: { color: '#999', marginVertical: 10 },
+  addBtn: { backgroundColor: '#003366', padding: 12, borderRadius: 20, marginTop: 10 },
+  addBtnText: { color: '#fff', fontWeight: 'bold' },
+  btnOutline: { padding: 10, borderWidth: 1, borderColor: '#003366', borderRadius: 20 },
+  
+  header: { fontSize: 12, color: '#999', marginTop: 30, textTransform: 'uppercase', fontWeight: 'bold' },
+  projBanner: { marginBottom: 20 },
+  projName: { fontSize: 26, fontWeight: 'bold', color: '#003366' },
+  projMeta: { fontSize: 14, color: '#666' },
+  
+  sectionLabel: { fontSize: 12, fontWeight: 'bold', color: '#aaa', marginBottom: 10 },
+  
+  // Card Style ใหม่ (แบบ List)
+  expCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 10, elevation: 2 },
+  cardLeft: { flexDirection: 'row', alignItems: 'center' },
+  iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E3F2FD', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  iconText: { color: '#003366', fontWeight: 'bold' },
+  expTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  expSub: { fontSize: 12, color: '#888' },
+
+  addBtnFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 12, marginTop: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: '#003366' },
+  addBtnTextDark: { color: '#003366', fontWeight: 'bold', marginLeft: 10, fontSize: 16 },
 });
