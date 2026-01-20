@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useProject } from '../GlobalContext'; // Import แบบ 2 จุด
+import { useProject } from '../GlobalContext'; 
 
 export default function HomeScreen() {
   const { currentUser, projects, createProject, deleteProject, selectProject, isLoggedIn } = useProject();
@@ -10,7 +10,6 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [newProjName, setNewProjName] = useState('');
 
-  // ฟังก์ชันสร้าง (แค่ชื่อ)
   const handleCreate = () => {
     if (!newProjName.trim()) return Alert.alert("Required", "Please enter project name");
     createProject(newProjName);
@@ -18,10 +17,9 @@ export default function HomeScreen() {
     setNewProjName('');
   };
 
-  // ฟังก์ชันกดเข้าโปรเจกต์
-  const openProject = (id: number) => {
-    selectProject(id); // Set Active Project
-    // ไปหน้า Result เพื่อดู Dashboard ของโปรเจกต์นั้น
+  // ✅ จุดที่แก้: เปลี่ยน id จาก number เป็น string ให้ตรงกับ Firebase
+  const openProject = (id: string) => {
+    selectProject(id);
     router.push("/results" as any);
   };
 
@@ -42,7 +40,7 @@ export default function HomeScreen() {
       <ScrollView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.welcome}>Researcher</Text>
-          <Text style={styles.user}>{currentUser}</Text>
+          <Text style={styles.user}>{currentUser || "Guest"}</Text>
         </View>
 
         <View style={styles.content}>
@@ -55,7 +53,6 @@ export default function HomeScreen() {
                <Text style={styles.emptySub}>Create a new project folder to start.</Text>
              </View>
           ) : (
-             // : any เพื่อแก้ตัวแดง
              projects.map((proj: any) => (
               <View key={proj.id} style={styles.projectWrapper}>
                 <TouchableOpacity style={styles.activeProject} onPress={() => openProject(proj.id)}>
@@ -64,7 +61,7 @@ export default function HomeScreen() {
                      <View style={{marginLeft: 10}}>
                         <Text style={styles.projName}>{proj.name}</Text>
                         <Text style={styles.projSub}>Created: {proj.createDate}</Text>
-                        <Text style={styles.expCount}>{proj.experiments.length} Experiments inside</Text>
+                        <Text style={styles.expCount}>{proj.experiments?.length || 0} Experiments inside</Text>
                      </View>
                    </View>
                 </TouchableOpacity>
@@ -86,7 +83,7 @@ export default function HomeScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New Project Folder</Text>
             <Text style={styles.inputLabel}>Project Name</Text>
-            <TextInput style={styles.input} placeholder="e.g. Lung Cancer Research 2024" value={newProjName} onChangeText={setNewProjName} />
+            <TextInput style={styles.input} placeholder="e.g. Lung Cancer Research" value={newProjName} onChangeText={setNewProjName} />
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelBtn}><Text style={{color:'#666'}}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={handleCreate} style={styles.createBtn}><Text style={{color:'#fff', fontWeight:'bold'}}>Create Folder</Text></TouchableOpacity>
